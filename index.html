@@ -1,610 +1,646 @@
 <!DOCTYPE html>
 <html lang="en">
-	<head>
-		<title>three.js webgl - geometry - vertex colors</title>
-		<meta charset="utf-8">
-		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-		<style>
-			body {
-				color: #808080;
-				font-family:Monospace;
-				font-size:13px;
-				text-align:center;
+<head>
+    <title>three.js webgl - geometry - vertex colors</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <style>
+        body {
+            color: #808080;
+            font-family:Monospace;
+            font-size:13px;
+            text-align:center;
 
-				background-color: #fff;
-				margin: 0px;
-				overflow: hidden;
-			}
+            background-color: #fff;
+            margin: 0px;
+            overflow: hidden;
+        }
 
-			#info {
-				position: absolute;
-				top: 0px; width: 100%;
-				padding: 5px;
-			}
+        #info {
+            position: absolute;
+            top: 0px; width: 100%;
+            padding: 5px;
+        }
 
-			a {
+        a {
 
-				color: #0080ff;
-			}
+            color: #0080ff;
+        }
 
-		</style>
-	</head>
-	<body>
+    </style>
+</head>
+<body>
 
-		<div id="container"></div>
-        <div id="info">CS277 Dynamics Example by Adam Leeper</div>
+<div id="container"></div>
+<div id="info">CS277 Dynamics Example by Adam Leeper
+    <br/>
+    The rotational instability is caused by explicit Euler integration. Oh well.
+    <br/>
+    <input type="button" value="Kick!" onclick="controls.kick()"></input>
+    <input type="button" value="Spin!" onclick="controls.spin()"></input>
+    <input type="button" value="Reset" onclick="controls.reset()"></input>
+</div>
 
-		<script src="js/three.min.js"></script>
-		<script src="js/Detector.js"></script>
-		<script src="js/stats.min.js"></script>
-    <script src="js/dat.gui.min.js"></script>
+<script src="js/three.min.js"></script>
+<script src="js/Detector.js"></script>
+<script src="js/stats.min.js"></script>
+<script src="js/dat.gui.min.js"></script>
 
-    <script>
+<script>
 
-        RigidBody = function () {
+RigidBody = function () {
 
-            this.position = new THREE.Vector3();
-            this.velocity = new THREE.Vector3();
-            this.quaternion = new THREE.Quaternion();
-            this.omega = new THREE.Vector3();
+    this.position = new THREE.Vector3();
+    this.velocity = new THREE.Vector3();
+    this.quaternion = new THREE.Quaternion();
+    this.omega = new THREE.Vector3();
 
-            this.invMass = 1;
-            //this.inertia = new THREE.Matrix3(); // sets to identity by default.
-            this.Ixx = 1;
-            this.Iyy = 1;
-            this.Izz = 1;
+    this.invMass = 1;
+    //this.inertia = new THREE.Matrix3(); // sets to identity by default.
+    this.Ixx = 1;
+    this.Iyy = 1;
+    this.Izz = 1;
 
-            this.force = new THREE.Vector3();
-            this.torque = new THREE.Vector3();
+    this.force = new THREE.Vector3();
+    this.torque = new THREE.Vector3();
 
-        };
+};
 
-        RigidBody.prototype = {
+RigidBody.prototype = {
 
-            constructor: RigidBody,
+    constructor: RigidBody,
 
-            clearState: function () {
-              this.position.set(0,0,0);
-              this.velocity.set(0,0,0);
-              this.quaternion.set(0,0,0,1);
-              this.omega.set(0,0,0);
-            },
+    clearState: function () {
+        this.position.set(0,0,0);
+        this.velocity.set(0,0,0);
+        this.quaternion.set(0,0,0,1);
+        this.omega.set(0,0,0);
+    },
 
-            setState: function (position, velocity, quaternion, omega) {
+    setState: function (position, velocity, quaternion, omega) {
 
-                this.position.copy(position);
-                this.velocity.copy(velocity);
-                this.quaternion.copy(quaternion);
-                this.omega.copy(omega);
+        this.position.copy(position);
+        this.velocity.copy(velocity);
+        this.quaternion.copy(quaternion);
+        this.omega.copy(omega);
 
-            },
+    },
 
-            setInvMass: function (invMass) {
-                this.invMass = invMass;
-            },
+    setInvMass: function (invMass) {
+        this.invMass = invMass;
+    },
 
-            setInertia: function (Ixx, Iyy, Izz) {
-                this.Ixx = Ixx;
-                this.Iyy = Iyy;
-                this.Izz = Izz;
-            },
+    setInertia: function (Ixx, Iyy, Izz) {
+        this.Ixx = Ixx;
+        this.Iyy = Iyy;
+        this.Izz = Izz;
+    },
 
-            addGravity: function (g_vector) {
-                if (this.invMass != 0.0)
-                    this.force.add(g_vector.clone().multiplyScalar(1.0/this.invMass));
-            },
+    addGravity: function (g_vector) {
+        if (this.invMass != 0.0)
+            this.force.add(g_vector.clone().multiplyScalar(1.0/this.invMass));
+    },
 
-            addForce: function (force) {
-                this.force.add(force);
-            },
+    addForce: function (force) {
+        this.force.add(force);
+    },
 
-            addTorque: function (torque) {
-                this.torque.add(torque);
-            },
+    addTorque: function (torque) {
+        this.torque.add(torque);
+    },
 
-            clearForceAndTorque: function () {
-                this.force.set(0,0,0);
-                this.torque.set(0,0,0);
-            },
+    clearForceAndTorque: function () {
+        this.force.set(0,0,0);
+        this.torque.set(0,0,0);
+    },
 
-            calculateNextQuaternion: function (q, w, delta) {
-                var e = new THREE.Quaternion();
+    calculateNextQuaternion: function (q, w, delta) {
+        var e = new THREE.Quaternion();
 
-                e.w = q.w + delta * 0.5 * (-q.x* w.x - q.y * w.y - q.z * w.z);
-                e.x = q.x + delta * 0.5 * ( q.w* w.x - q.z * w.y + q.y * w.z);
-                e.y = q.y + delta * 0.5 * ( q.z* w.x + q.w * w.y - q.x * w.z);
-                e.z = q.z + delta * 0.5 * (-q.y* w.x + q.x * w.y + q.w * w.z);
+        e.w = q.w + delta * 0.5 * (-q.x* w.x - q.y * w.y - q.z * w.z);
+        e.x = q.x + delta * 0.5 * ( q.w* w.x - q.z * w.y + q.y * w.z);
+        e.y = q.y + delta * 0.5 * ( q.z* w.x + q.w * w.y - q.x * w.z);
+        e.z = q.z + delta * 0.5 * (-q.y* w.x + q.x * w.y + q.w * w.z);
 
-                e.normalize();
+        e.normalize();
 
-                return e;
-            },
+        return e;
+    },
 
-            step: function (delta) {
-                var prev_pos = this.position.clone();
-                var prev_vel = this.velocity.clone();
-                var prev_quaternion = this.quaternion.clone();
-                var prev_omega = this.omega.clone();
+    step: function (delta) {
+        var prev_pos = this.position.clone();
+        var prev_vel = this.velocity.clone();
+        var prev_quaternion = this.quaternion.clone();
+        var prev_omega = this.omega.clone();
 
-                // Get differential equations for velocity
-                // F = m * a
-                var accel = this.force.clone().multiplyScalar(this.invMass);
-                this.velocity = prev_vel.clone().add(accel.clone().multiplyScalar(delta));
-                this.position = prev_pos.clone().add(prev_vel.clone().multiplyScalar(delta));
+        // Get differential equations for velocity
+        // F = m * a
+        var accel = this.force.clone().multiplyScalar(this.invMass);
+        this.velocity = prev_vel.clone().add(accel.clone().multiplyScalar(delta));
+        this.position = prev_pos.clone().add(prev_vel.clone().multiplyScalar(delta));
 
-                // Get differential equations for angular velocity
-                // M = I . alpha * omega x I . omega
+        // Get differential equations for angular velocity
+        // M = I . alpha * omega x I . omega
 
-//                var w_R_b = new THREE.Matrix4();
-//                w_R_b.makeRotationFromQuaternion(this.quaternion);
-//                var b_R_w = w_R_b.clone().transpose();
+//        var w_R_b = new THREE.Matrix4();
+//        w_R_b.makeRotationFromQuaternion(this.quaternion);
+//        var b_R_w = w_R_b.clone().transpose();
 //
-//                var b_torque = this.torque.clone().applyMatrix4(b_R_w);
-//                var b_omega = prev_omega.clone().applyMatrix4(b_R_w);
+//        var b_torque = this.torque.clone().applyMatrix4(b_R_w);
+//        var b_omega = prev_omega.clone().applyMatrix4(b_R_w);
 //
-//                var Ixx = this.Ixx;
-//                var Iyy = this.Iyy;
-//                var Izz = this.Izz;
+//        var Ixx = this.Ixx;
+//        var Iyy = this.Iyy;
+//        var Izz = this.Izz;
 //
-//                var b_omegadot = new THREE.Vector3(((Iyy - Izz)* b_omega.z* b_omega.y + b_torque.x) / Ixx,
-//                                                   ((Izz - Ixx)* b_omega.x* b_omega.z + b_torque.y) / Iyy,
-//                                                   ((Ixx - Iyy)* b_omega.y* b_omega.x + b_torque.z) / Izz);
+//        var b_omegadot = new THREE.Vector3(((Iyy - Izz)* b_omega.z* b_omega.y + b_torque.x) / Ixx,
+//                ((Izz - Ixx)* b_omega.x* b_omega.z + b_torque.y) / Iyy,
+//                ((Ixx - Iyy)* b_omega.y* b_omega.x + b_torque.z) / Izz);
 //
-//                var b_omega_next = b_omega.clone().add(b_omegadot.clone().multiplyScalar(delta));
-//                var w_omega_next = b_omega_next.clone().applyMatrix4(w_R_b);
+//        var b_omega_next = b_omega.clone().add(b_omegadot.clone().multiplyScalar(delta));
+//        var w_omega_next = b_omega_next.clone().applyMatrix4(w_R_b);
 
-                var w_omegadot = this.torque.clone().multiplyScalar(1.0/this.Ixx);
-                var w_omega_next = prev_omega.clone().add(w_omegadot.clone().multiplyScalar(delta));
+        var w_omegadot = this.torque.clone().multiplyScalar(1.0/this.Ixx);
+        var w_omega_next = prev_omega.clone().add(w_omegadot.clone().multiplyScalar(delta));
 
-                // Quaternion Update
-                var quaternion_next = this.calculateNextQuaternion(prev_quaternion, prev_omega, delta);
+        // Quaternion Update
+        var quaternion_next = this.calculateNextQuaternion(prev_quaternion, prev_omega, delta);
 
-                this.omega.copy(w_omega_next);
-                this.quaternion.copy(quaternion_next);
+        this.omega.copy(w_omega_next);
+        this.quaternion.copy(quaternion_next);
 
-            }
-        };
+    }
+};
 
 
-        if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
+if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
 
-			var container, stats;
+var container, stats;
 
-			var camera, scene, renderer, clock;
+var camera, scene, renderer, clock;
 
-            var myParams;
+var simParams, springParams, airParams, gravityParams, controls;
 
-			var mesh, group1, group2, group3, light;
+var mesh, group1, shadow, light;
 
-            var spring_arrow, debug_arrow;
+var spring_arrow, debug_arrow;
 
-            var body1, body2, body3;
+var body1;
 
-            var shadow;
+var mouseX = 0, mouseY = 0;
 
-			var mouseX = 0, mouseY = 0;
+var windowHalfX = window.innerWidth / 2;
+var windowHalfY = window.innerHeight / 2;
 
-			var windowHalfX = window.innerWidth / 2;
-			var windowHalfY = window.innerHeight / 2;
+defineControls();
+init();
+animate();
 
-			init();
-			animate();
+function init() {
 
-			function init() {
+    container = document.getElementById( 'container' );
 
-				container = document.getElementById( 'container' );
+    camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 1, 10000 );
+    camera.position.set(3,2,8);
 
-				camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 1, 10000 );
-				camera.position.set(3,2,8);
+    scene = new THREE.Scene();
 
-				scene = new THREE.Scene();
+    light = new THREE.DirectionalLight( 0xffffff );
+    light.position.set( 0, 0, 1 );
+    scene.add( light );
 
-				light = new THREE.DirectionalLight( 0xffffff );
-				light.position.set( 0, 0, 1 );
-				scene.add( light );
+    // shadow
 
-				// shadow
+    var canvas = document.createElement( 'canvas' );
+    canvas.width = 128;
+    canvas.height = 128;
 
-				var canvas = document.createElement( 'canvas' );
-				canvas.width = 128;
-				canvas.height = 128;
+    var context = canvas.getContext( '2d' );
+    var gradient = context.createRadialGradient( canvas.width / 2, canvas.height / 2, 0, canvas.width / 2, canvas.height / 2, canvas.width / 2 );
+    gradient.addColorStop( 0.1, 'rgba(210,210,210,1)' );
+    gradient.addColorStop( 1, 'rgba(255,255,255,1)' );
 
-				var context = canvas.getContext( '2d' );
-				var gradient = context.createRadialGradient( canvas.width / 2, canvas.height / 2, 0, canvas.width / 2, canvas.height / 2, canvas.width / 2 );
-				gradient.addColorStop( 0.1, 'rgba(210,210,210,1)' );
-				gradient.addColorStop( 1, 'rgba(255,255,255,1)' );
+    context.fillStyle = gradient;
+    context.fillRect( 0, 0, canvas.width, canvas.height );
 
-				context.fillStyle = gradient;
-				context.fillRect( 0, 0, canvas.width, canvas.height );
+    var shadowTexture = new THREE.Texture( canvas );
+    shadowTexture.needsUpdate = true;
 
-				var shadowTexture = new THREE.Texture( canvas );
-				shadowTexture.needsUpdate = true;
+    var shadowMaterial = new THREE.MeshBasicMaterial( { map: shadowTexture } );
+    var shadowGeo = new THREE.PlaneGeometry( 3, 3, 1, 1 );
 
-				var shadowMaterial = new THREE.MeshBasicMaterial( { map: shadowTexture } );
-				var shadowGeo = new THREE.PlaneGeometry( 3, 3, 1, 1 );
+    shadow = new THREE.Mesh( shadowGeo, shadowMaterial );
+    shadow.position.y = - 5;
+    shadow.rotation.x = - Math.PI / 2;
+    scene.add( shadow );
 
-				shadow = new THREE.Mesh( shadowGeo, shadowMaterial );
-                shadow.position.y = - 5;
-                shadow.rotation.x = - Math.PI / 2;
-				scene.add( shadow );
+    var redMaterial   = new THREE.MeshBasicMaterial( {color: 0xff0000} );
+    var greenMaterial = new THREE.MeshBasicMaterial( {color: 0x00ff00} );
+    var blueMaterial  = new THREE.MeshBasicMaterial( {color: 0x0000ff} );
+    var axisGeometry = new THREE.CylinderGeometry(0.02, 0.02, 10);
+
+    var x_axis = new THREE.Mesh( axisGeometry, redMaterial );
+    x_axis.rotateZ(-Math.PI/2);
+    scene.add(x_axis);
+
+    var y_axis = new THREE.Mesh( axisGeometry, greenMaterial );
+    scene.add(y_axis);
+
+    var z_axis = new THREE.Mesh( axisGeometry, blueMaterial );
+    z_axis.rotateX(Math.PI/2);
+    scene.add(z_axis);
+
+    spring_arrow = new THREE.ArrowHelper(
+            new THREE.Vector3(1,0,0), new THREE.Vector3(0,0,0), 2, 0x000000);
+    scene.add(spring_arrow);
+
+    debug_arrow = new THREE.ArrowHelper(
+            new THREE.Vector3(1,0,0), new THREE.Vector3(0,0,0), 2, 0x00ffff);
+    scene.add(debug_arrow);
+
+
+    // This is needlessly complicated, but I copied an example :)
+    var radius = 1;
+    var geometry  = new THREE.IcosahedronGeometry( radius, 1 );
+    var faceIndices = [ 'a', 'b', 'c', 'd' ];
+
+    for ( var i = 0; i < geometry.faces.length; i ++ ) {
+
+        var color, f, f2, f3, p, n, vertexIndex;
+
+        f  = geometry.faces[ i ];
+        n = ( f instanceof THREE.Face3 ) ? 3 : 4;
+
+        for( var j = 0; j < n; j++ ) {
+
+            vertexIndex = f[ faceIndices[ j ] ];
+            p = geometry.vertices[ vertexIndex ];
+            color = new THREE.Color( 0xffffff );
+            color.setHSL( ( p.y / radius + 1 ) / 2, 1.0, 0.5 );
+            f.vertexColors[ j ] = color;
+        }
+    }
+
+
+    var materials = [
+        new THREE.MeshLambertMaterial( { color: 0xffffff, shading: THREE.FlatShading, vertexColors: THREE.VertexColors } ),
+        new THREE.MeshBasicMaterial( { color: 0x000000, shading: THREE.FlatShading, wireframe: true, transparent: true } )
+    ];
+
+    group1 = THREE.SceneUtils.createMultiMaterialObject( geometry, materials );
+    group1.position.x = 0;
+    group1.rotation.x = 0;
+    scene.add( group1 );
+
+    // =================================================
+    // Configure the rigid body
+    // =================================================
+    body1 = new RigidBody();
+    body1.invMass = 1;
+    body1.setInertia(1,1,1);
+
+    controls.reset();
+
+    // =================================================
+    // =================================================
+    // =================================================
+
+    renderer = new THREE.WebGLRenderer( { antialias: true } );
+    renderer.setClearColor( 0xffffff );
+    renderer.setSize( window.innerWidth, window.innerHeight );
+
+    container.appendChild( renderer.domElement );
+
+    stats = new Stats();
+    stats.domElement.style.position = 'absolute';
+    stats.domElement.style.top = '0px';
+    container.appendChild( stats.domElement );
+
+    setupGui();
+
+    // Start our integration clock
+    clock = new THREE.Clock(true);
+
+    document.addEventListener( 'mousemove', onDocumentMouseMove, false );
+
+    window.addEventListener( 'resize', onWindowResize, false );
+
+}
+
+function setupGui() {
+
+    simParams = {
+        mass: 1,
+        running: true,
+        step_size: 0.001
+    };
+
+    gravityParams = {
+        enabled: true,
+        gravity: 9.81
+    };
+
+    airParams = {
+        enabled: true,
+        b_trans: 1,
+        b_rot: 2
+    };
+
+    springParams = {
+        enabled: true,
+        is_string: true,
+        k: 100.0,
+        Ln: 2,
+        b_damper: 2,
+        b_torsion: 1,
+        show_torque: false
+    };
+
+    var h;
+    var gui = new dat.GUI();
+
+    gui.add( simParams, "running", true);
+    gui.add( simParams, "step_size", 0.0001, 0.1, 0.001);
+    gui.add( simParams, "mass",     0.1, 10,   1 );
+
+    h = gui.addFolder("Air Resistance");
+    h.add( airParams, "enabled",    true);
+    h.add( airParams, "b_trans", 0, 10,   1 );
+    h.add( airParams, "b_rot",   0, 10,   2 );
+
+    h = gui.addFolder("Gravity");
+    h.add( gravityParams, "enabled", true);
+    h.add( gravityParams, "gravity",   0, 100, 9.81 );
+
+    h = gui.addFolder( "Spring-Damper" );
+    h.add( springParams, "enabled", true);
+    h.add( springParams, "is_string", true );
+    h.add( springParams, "k",  0, 1000, 100 );
+    h.add( springParams, "Ln", 0,   10,   2 );
+    h.add( springParams, "b_damper",  0, 100,  10);
+    h.add( springParams, "b_torsion", 0, 10,  1);
+    h.add( springParams, "show_torque",     false );
+
+}
+
+function onWindowResize() {
+
+    windowHalfX = window.innerWidth / 2;
+    windowHalfY = window.innerHeight / 2;
+
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+
+    renderer.setSize( window.innerWidth, window.innerHeight );
+
+}
+
+function onDocumentMouseMove( event ) {
+
+    mouseX = ( event.clientX - windowHalfX );
+    mouseY = ( event.clientY - windowHalfY );
+
+}
+
 //
-//				mesh = new THREE.Mesh( shadowGeo, shadowMaterial );
-//				mesh.position.y = - 2;
-//				mesh.position.x = - 4;
-//				mesh.rotation.x = - Math.PI / 2;
-//				scene.add( mesh );
-//
-//				mesh = new THREE.Mesh( shadowGeo, shadowMaterial );
-//				mesh.position.y = - 2;
-//				mesh.position.x = 4;
-//				mesh.rotation.x = - Math.PI / 2;
-//				scene.add( mesh );
 
-                var redMaterial   = new THREE.MeshBasicMaterial( {color: 0xff0000} );
-                var greenMaterial = new THREE.MeshBasicMaterial( {color: 0x00ff00} );
-                var blueMaterial  = new THREE.MeshBasicMaterial( {color: 0x0000ff} );
-                var blackMaterial  = new THREE.MeshBasicMaterial( {color: 0x000000} );
-                var axisGeo = new THREE.CylinderGeometry(0.02, 0.02, 10);
-
-                var x_axis = new THREE.Mesh( axisGeo, redMaterial );
-                x_axis.rotateZ(-Math.PI/2);
-                scene.add(x_axis);
-
-                var y_axis = new THREE.Mesh( axisGeo, greenMaterial );
-                scene.add(y_axis);
-
-                var z_axis = new THREE.Mesh( axisGeo, blueMaterial );
-                z_axis.rotateX(Math.PI/2);
-                scene.add(z_axis);
-
-                spring_arrow = new THREE.ArrowHelper(
-                        new THREE.Vector3(1,0,0), new THREE.Vector3(0,0,0), 2, 0x000000);
-                scene.add(spring_arrow);
-
-                debug_arrow = new THREE.ArrowHelper(
-                        new THREE.Vector3(1,0,0), new THREE.Vector3(0,0,0), 2, 0x00ffff);
-                scene.add(debug_arrow);
-
-
-				var faceIndices = [ 'a', 'b', 'c', 'd' ];
-
-				var color, f, f2, f3, p, n, vertexIndex,
-
-					radius = 1,
-
-					geometry  = new THREE.IcosahedronGeometry( radius, 1 ),
-					geometry2 = new THREE.IcosahedronGeometry( radius, 1 ),
-					geometry3 = new THREE.IcosahedronGeometry( radius, 1 );
-
-				for ( var i = 0; i < geometry.faces.length; i ++ ) {
-
-					f  = geometry.faces[ i ];
-					f2 = geometry2.faces[ i ];
-					f3 = geometry3.faces[ i ];
-
-					n = ( f instanceof THREE.Face3 ) ? 3 : 4;
-
-					for( var j = 0; j < n; j++ ) {
-
-						vertexIndex = f[ faceIndices[ j ] ];
-
-						p = geometry.vertices[ vertexIndex ];
-
-						color = new THREE.Color( 0xffffff );
-						color.setHSL( ( p.y / radius + 1 ) / 2, 1.0, 0.5 );
-
-						f.vertexColors[ j ] = color;
-
-						color = new THREE.Color( 0xffffff );
-						color.setHSL( 0.0, ( p.y / radius + 1 ) / 2, 0.5 );
-
-						f2.vertexColors[ j ] = color;
-
-						color = new THREE.Color( 0xffffff );
-						color.setHSL( 0.125 * vertexIndex/geometry.vertices.length, 1.0, 0.5 );
-
-						f3.vertexColors[ j ] = color;
-
-					}
-
-				}
-
-
-				var materials = [
-
-					new THREE.MeshLambertMaterial( { color: 0xffffff, shading: THREE.FlatShading, vertexColors: THREE.VertexColors } ),
-					new THREE.MeshBasicMaterial( { color: 0x000000, shading: THREE.FlatShading, wireframe: true, transparent: true } )
-
-				];
-
-//				group1 = THREE.SceneUtils.createMultiMaterialObject( geometry, materials );
-//				group1.position.x = -4;
-//				group1.rotation.x = -1.87;
-//				scene.add( group1 );
-//
-//				group2 = THREE.SceneUtils.createMultiMaterialObject( geometry2, materials );
-//				group2.position.x = 4;
-//				group2.rotation.x = 0;
-//				scene.add( group2 );
-
-				group3 = THREE.SceneUtils.createMultiMaterialObject( geometry3, materials );
-				group3.position.x = 0;
-				group3.rotation.x = 0;
-				scene.add( group3 );
-
-                // =================================================
-                // Configure the rigid body
-                // =================================================
-                body1 = new RigidBody();
-                body1.invMass = 1;
-                //body1.setInertia(new THREE.Matrix3(0.4,0,0,0,0.4,0,0,0,0.4));
-                body1.setInertia(1,1,1);
-
-
-
-
-                // =================================================
-                // =================================================
-                // =================================================
-
-				renderer = new THREE.WebGLRenderer( { antialias: true } );
-				renderer.setClearColor( 0xffffff );
-				renderer.setSize( window.innerWidth, window.innerHeight );
-
-				container.appendChild( renderer.domElement );
-
-				stats = new Stats();
-				stats.domElement.style.position = 'absolute';
-				stats.domElement.style.top = '0px';
-				container.appendChild( stats.domElement );
-
-                setupGui();
-
-                // Start our integration clock
-                clock = new THREE.Clock(true);
-
-				document.addEventListener( 'mousemove', onDocumentMouseMove, false );
-
-				//
-
-				window.addEventListener( 'resize', onWindowResize, false );
-
-			}
-
-            function setupGui() {
-
-                myParams = {
-                    gravity: 9.81,
-                    b_air_trans: 1,
-                    b_air_rot: 1,
-                    mass: 1,
-                    show_torque: false,
-
-                    k_spring: 100.0,
-                    b_damper: 10,
-                    b_torsion: 0,
-                    Ln_spring: 2,
-                    is_string: true,
-
-                    running: false,
-                    step_size: 0.001,
-
-                    enable_air: true,
-                    enable_spring: true,
-                    enable_gravity: true,
-
-                    reset: function()
-                    {
-                        body1.clearState();
-                        body1.position.set(0,-0.8,0);
-                        body1.velocity.set(0,0,0);
-                        body1.omega.set(0,0,0);
-                    },
-
-                    kick: function() {
-                        var velocity = new THREE.Vector3(2.0*(Math.random()-0.5), 3*Math.random(), Math.random()-0.5);
-                        velocity.multiplyScalar(5);
-                        body1.velocity.add(velocity);
-                    },
-                    spin: function() {
-                        var omega = new THREE.Vector3(2.0*(Math.random()-0.5), 2*Math.random(), Math.random()-0.5);
-                        omega.multiplyScalar(5);
-                        body1.omega.add(omega);
-                    }
-
-                };
-                myParams.reset();
-
-                var h;
-                var gui = new dat.GUI();
-
-                gui.add( myParams, "running", false);
-                gui.add( myParams, "step_size", 0.0001, 0.1, 0.001);
-
-                gui.add( myParams, "enable_air",    true);
-                gui.add( myParams, "enable_spring", true);
-                gui.add( myParams, "enable_gravity", true);
-                gui.add( myParams, "reset");
-                gui.add( myParams, "kick");
-                gui.add( myParams, "spin");
-
-                gui.add( myParams, "gravity",   0, 100, 9.81 );
-                gui.add( myParams, "b_air_trans",     0, 10,   1 );
-                gui.add( myParams, "b_air_rot",     0, 10,   1 );
-                gui.add( myParams, "mass",     0.1, 10,   1 );
-                gui.add( myParams, "show_torque",     false );
-
-                h = gui.addFolder( "Spring-Damper" );
-                h.add( myParams, "k_spring",  0, 1000, 100 );
-                h.add( myParams, "b_damper",  0, 100,  10);
-                h.add( myParams, "b_torsion",  0, 100,  0);
-                h.add( myParams, "Ln_spring", 0.0, 10.0, 2 );
-                h.add( myParams, "is_string", true );
-
-            }
-
-			function onWindowResize() {
-
-				windowHalfX = window.innerWidth / 2;
-				windowHalfY = window.innerHeight / 2;
-
-				camera.aspect = window.innerWidth / window.innerHeight;
-				camera.updateProjectionMatrix();
-
-				renderer.setSize( window.innerWidth, window.innerHeight );
-
-			}
-
-			function onDocumentMouseMove( event ) {
-
-				mouseX = ( event.clientX - windowHalfX );
-				mouseY = ( event.clientY - windowHalfY );
-
-			}
-
-			//
-
-            function runDynamics(delta) {
-
-                var w_gravity = new THREE.Vector3(0, -myParams.gravity, 0);
-
-                body1.clearForceAndTorque();
-                body1.setInvMass(1.0/myParams.mass);
-                body1.setInertia(0.4*myParams.mass, 0.4*myParams.mass, 0.4*myParams.mass);
-
-                var w_T_b = new THREE.Matrix4();
-                w_T_b.makeRotationFromQuaternion(body1.quaternion);
-                w_T_b.setPosition(body1.position);
-                var w_R_b = w_T_b.clone();
-                w_R_b.setPosition(new THREE.Vector3(0,0,0));
-//                var b_T_w = new THREE.Matrix4();
-//                b_T_w.getInverse(w_T_b);
-//                var b_R_w = b_T_w.clone();
-//                b_R_w.setPosition(new THREE.Vector3(0,0,0));
-
-                // Gravity is easy!
-                if (myParams.enable_gravity)
-                {
-                    body1.addGravity(w_gravity);
-                }
-
-                if (myParams.enable_spring)
-                {
-                    // The spring is harder...
-                    var w_r_No_P = new THREE.Vector3(0,0,0);
-
-                    var b_r_Bo_Q = new THREE.Vector3(0, 1, 0);
-                    var w_r_Bo_Q = b_r_Bo_Q.clone().applyMatrix4(w_R_b);
-                    //console.log("w_r_Bo_Q: " + w_r_Bo_Q.x + ", " + w_r_Bo_Q.y + ", " + w_r_Bo_Q.z);
-                    var w_r_No_Q = b_r_Bo_Q.clone().applyMatrix4(w_T_b);
-
-                    var w_r_P_Q = w_r_No_Q.clone().sub(w_r_No_P);
-                    var w_r_P_Q_hat = w_r_P_Q.clone().normalize();
-                    var stretch = w_r_P_Q.length() - myParams.Ln_spring;
-                    var w_F_spring_Q = w_r_P_Q_hat.clone().multiplyScalar(-myParams.k_spring * stretch);
-
-                    var w_v_Q_rel_P = body1.velocity.clone().add(body1.omega.clone().cross(w_r_Bo_Q));
-                    var w_v_Q_rel_P_dir = w_r_P_Q_hat.clone().multiplyScalar(w_v_Q_rel_P.dot(w_r_P_Q_hat));
-
-
-                    var w_F_damper_Q = w_v_Q_rel_P_dir.clone().multiplyScalar(-myParams.b_damper);
-
-
-
-                    spring_arrow.setDirection(w_r_P_Q_hat);
-                    spring_arrow.setLength(w_r_P_Q.length());
-
-//                    var diff = w_F_damper_Q.dot(w_F_spring_Q) - w_F_spring_Q.length()*w_F_damper_Q.length();
-//                    if (Math.abs(diff) > 0.1 )
-//                    {
-//                        console.log("Badness!!! Diff = " + diff);
-//                    }
-
-                    var w_F_total = w_F_spring_Q.clone().add(w_F_damper_Q);
-                    var w_T_torsion_damper = w_r_P_Q_hat.multiplyScalar(-body1.omega.dot(w_r_P_Q_hat)*myParams.b_torsion);
-                    var w_T_total = w_r_Bo_Q.clone().cross(w_F_total).add(w_T_torsion_damper);
-
-                    if (myParams.is_string && stretch < 0)
-                    {
-                        w_F_total.set(0,0,0);
-                        w_T_total.set(0,0,0);
-                    }
-
-                    body1.addForce(w_F_total);
-                    body1.addTorque(w_T_total);
-
-                    if (myParams.show_torque)
-                    {
-                        debug_arrow.position.copy(w_r_No_Q);
-                        debug_arrow.setDirection(w_T_total.clone().normalize());
-                        debug_arrow.setLength(w_T_total.length()+0.001);
-                    } else {
-                        debug_arrow.setLength(0.001);
-                    }
-
-                }
-
-                // Air
-                if (myParams.enable_air)
-                {
-                    body1.addForce(body1.velocity.clone().multiplyScalar(-myParams.b_air_trans));
-                    body1.addTorque(body1.omega.clone().multiplyScalar(-myParams.b_air_rot));
-                }
-
-                // Run the time integration
-                body1.step(delta);
-
-            }
-
-            function printVector3( text, v ) {
-                console.log(text + v.x + ", " + v.y + ", " + v.z);
-            }
-
-
-			function animate() {
-
-				requestAnimationFrame( animate );
-
-                var delta = clock.getDelta();
-                var elapsed = clock.getElapsedTime();
-
-                if (myParams.running === true)
-                {
-                    var t = 0
-                    while (t < delta)
-                    {
-                        t = t + myParams.step_size;
-                        runDynamics(myParams.step_size);
-                    }
-                }
-
-
-
-                // Now actually update the drawable object position
-                group3.position.copy(body1.position);
-                group3.setRotationFromQuaternion(body1.quaternion);
-
-                shadow.position.setX(body1.position.x);
-                shadow.position.setZ(body1.position.z);
-
-				render();
-				stats.update();
-
-			}
-
-			function render() {
-
-//				camera.position.x += ( mouseX - camera.position.x ) * 0.005;
-//				camera.position.y += ( - mouseY - camera.position.y ) * 0.005;
-
-				//camera.lookAt( scene.position );
-                camera.lookAt( new THREE.Vector3(0, -2, 0) );
-
-				renderer.render( scene, camera );
-
-			}
-
-		</script>
-
-	</body>
+function runDynamics(delta) {
+
+    // This is the gravity vector. Needs to be multiplied by mass for any object.
+    var w_gravity = new THREE.Vector3(0, -gravityParams.gravity, 0);
+
+    // For each body...
+
+    body1.clearForceAndTorque();
+    body1.setInvMass(1.0/simParams.mass);
+    var I_sphere = 0.4*simParams.mass;
+    body1.setInertia(I_sphere);
+
+    // Get the pose of the ball in the world frame.
+    var w_T_b = new THREE.Matrix4();
+    w_T_b.makeRotationFromQuaternion(body1.quaternion);
+    w_T_b.setPosition(body1.position);
+
+    // Also useful to have just the orientation of the ball in the world frame.
+    var w_R_b = w_T_b.clone();
+    w_R_b.setPosition(new THREE.Vector3(0,0,0));
+
+    // ============================================================
+    // Calculate useful vectors for computing forces below.
+    // ============================================================
+
+    // Explanation of notation:
+    // w_r_No_P
+    // w is the frame in which this thing is expressed
+    // r is "what" this thing is, in this case a position vector
+    // No_P indicates this position vector points from No to P
+
+    // P is the tether connection in the world.
+    // For simplicity we'll just stick it at the world origin... which I called No.
+    var w_r_No_P = new THREE.Vector3(0,0,0);
+
+    // Q is the tether connection on the ball.
+    var b_r_Bo_Q = new THREE.Vector3(0, 1, 0);
+
+    // Get the same vector expressed in w instead of b.
+    var w_r_Bo_Q = b_r_Bo_Q.clone().applyMatrix4(w_R_b);
+
+    // Also get the position of Q measured from No, expressed in w.
+    var w_r_No_Q = b_r_Bo_Q.clone().applyMatrix4(w_T_b);
+
+    // Get vector from P to Q.
+    var w_r_P_Q = w_r_No_Q.clone().sub(w_r_No_P);
+
+    // Get unit vector from P to Q.
+    // Note: you need to handle the case when the length is zero (three.js does
+    // this internally), because dividing by zero is bad. One common approach
+    // is to simply divide by (magnitude + epsilon).
+    var w_r_P_Q_hat = w_r_P_Q.clone().normalize();
+
+    // ============================================================
+    // Now we'll start accumulating forces and torques on the body:
+    // ============================================================
+
+    // Gravity is easy!
+    if (gravityParams.enabled)
+    {
+        body1.addGravity(w_gravity);
+    }
+
+    // The spring is harder...
+    if (springParams.enabled)
+    {
+        // Spring force is F_spring_on_Q_from_P = -k*stretch*(unit vector from P to Q)
+        var stretch = w_r_P_Q.length() - springParams.Ln;
+        var w_F_spring_Q = w_r_P_Q_hat.clone().multiplyScalar(-springParams.k * stretch);
+
+        //printVector3("Force spring: ", w_F_spring_Q);
+
+        // Damper force is F_damper_on_Q_from_P = -b*Ldot*(unit vector from P to Q)
+        // Note that since B is spinning, the velocity of Q in the world frame is
+        // v_Q = v_Bcm + cross(omega_B , r_Bo_Q)
+        // Of course, you need to ensure everything is expressed in the same frame before
+        // you do the math.
+        var w_v_Bcm = body1.velocity.clone();
+        var w_omega_B = body1.omega.clone();
+        var w_v_Q_rel_P = w_v_Bcm.clone().add(w_omega_B.clone().cross(w_r_Bo_Q));
+        var Ldot = w_v_Q_rel_P.dot(w_r_P_Q_hat);
+        var w_F_damper_Q = w_r_P_Q_hat.clone().multiplyScalar(-springParams.b_damper * Ldot);
+
+        // Total spring-damper force
+        var w_F_total = w_F_spring_Q.clone().add(w_F_damper_Q);
+
+        // Compute the moment (torque) from the spring-damper on B, about Bcm.
+        var w_M_spring = w_r_Bo_Q.clone().cross(w_F_total);
+
+        // Let's add a (totally fake) moment/torque that attempts to discourage
+        // rotation of the ball around the vector pointing from Bcm to Q.
+        //var w_M_torsion_damper = w_r_P_Q_hat.multiplyScalar(-body1.omega.dot(w_r_P_Q_hat)*myParams.b_torsion);
+        //var w_r_Bo_Q_hat = w_r_Bo_Q.clone().normalize();
+        //var w_M_torsion_damper = w_r_Bo_Q_hat.clone().multiplyScalar(-body1.omega.dot(w_r_Bo_Q_hat)*myParams.b_torsion);
+        var w_omega_B_axial = w_r_P_Q_hat.clone().multiplyScalar(body1.omega.dot(w_r_P_Q_hat));
+        var w_omega_B_perp = body1.omega.clone().sub(w_omega_B_axial);
+        var w_M_torsion_damper = w_omega_B_perp.clone().multiplyScalar(-springParams.b_torsion);
+
+        // Total moment (torque) on B:
+        var w_M_total = w_M_spring.clone().add(w_M_torsion_damper);
+
+        // If we want to model a string instead of a spring, we simply
+        // disable its ability to "push".
+        if (springParams.is_string && stretch < 0)
+        {
+            w_F_total.set(0,0,0);
+            w_M_total.set(0,0,0);
+        }
+
+        // Finally actually add the forces to the body.
+        body1.addForce(w_F_total);
+        body1.addTorque(w_M_total);
+
+        // Optionally a debugging arrow to show torque.
+        if (springParams.show_torque)
+        {
+            var vec = w_M_total;
+            debug_arrow.position.copy(w_r_No_Q);
+            debug_arrow.setDirection(vec.clone().normalize());
+            debug_arrow.setLength(vec.length() + 0.001);
+        } else {
+            debug_arrow.setLength(0.001);
+        }
+    }
+
+    // Air
+    if (airParams.enabled)
+    {
+        // Air resistance is simply modeled as opposing the velocity or
+        // angular velocity of the body.
+        // force_air = -b1 * w_v_Bcm
+        // torque_air = -b2 * w_omega_B
+        body1.addForce(body1.velocity.clone().multiplyScalar(-airParams.b_trans));
+        body1.addTorque(body1.omega.clone().multiplyScalar(-airParams.b_rot));
+    }
+
+    // We draw an arrow representing the spring/string:
+    if (springParams.enabled)
+    {
+        spring_arrow.setDirection(w_r_P_Q_hat);
+        spring_arrow.setLength(w_r_P_Q.length());
+    } else {
+        spring_arrow.setLength(0.001);
+    }
+
+
+
+    // Run the time integration!!
+    body1.step(delta);
+}
+
+function defineControls() {
+    controls = {
+        reset: function()
+        {
+            body1.clearState();
+            body1.position.set(0,-1,0);
+            body1.velocity.set(0,0,0);
+            body1.omega.set(0,0,0);
+        },
+
+        zeroVel: function () {
+            body1.velocity.set(0,0,0);
+            body1.omega.set(0,0,0);
+        },
+
+        kick: function() {
+            var velocity = new THREE.Vector3(
+                    Math.random() - 0.5,
+                    3 * Math.random(),
+                    Math.random() - 0.5);
+            velocity.multiplyScalar(5);
+            body1.velocity.add(velocity);
+        },
+        spin: function() {
+            var omega = new THREE.Vector3(
+                    4 * (Math.random() - 0.5),
+                    1 *  Math.random(),
+                    4 * (Math.random() - 0.5));
+            //var omega = new THREE.Vector3(0, 2*Math.random(), 0);
+            omega.multiplyScalar(10);
+            body1.omega.add(omega);
+        }
+    };
+
+}
+
+function printVector3( text, v ) {
+    console.log(text + v.x + ", " + v.y + ", " + v.z);
+}
+
+
+function animate() {
+
+    requestAnimationFrame( animate );
+
+    var delta = clock.getDelta();
+    var elapsed = clock.getElapsedTime();
+
+    if (simParams.running === true)
+    {
+        // We want to take small steps rather than just taking one giant step
+        // indicated by the graphics update frame time.
+        var t = 0
+        while (t < delta)
+        {
+            t = t + simParams.step_size;
+            runDynamics(simParams.step_size);
+        }
+    }
+
+    // Now actually update the drawable object position
+    group1.position.copy(body1.position);
+    group1.setRotationFromQuaternion(body1.quaternion);
+
+    shadow.position.setX(body1.position.x);
+    shadow.position.setZ(body1.position.z);
+
+    render();
+    stats.update();
+
+}
+
+function render() {
+
+//    camera.position.x += ( mouseX - camera.position.x * 500 + 2000 ) * 0.0005;
+//    camera.position.y += ( - mouseY - camera.position.y * 500 + 800 ) * 0.0005;
+
+
+    //camera.lookAt( scene.position );
+    camera.lookAt( new THREE.Vector3(0, -2, 0) );
+
+    renderer.render( scene, camera );
+
+}
+
+</script>
+
+</body>
 </html>
