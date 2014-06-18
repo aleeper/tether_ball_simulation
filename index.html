@@ -36,8 +36,6 @@
     CS277 Dynamics Example by Adam Leeper
     (clone on <a href="https://github.com/aleeper/tether_ball_simulation/">github</a>)
     <br/>
-    The rotational instability is caused by explicit Euler integration. Oh well.
-    <br/>
     <input type="button" value="Kick!" onclick="controls.kick()"></input>
     <input type="button" value="Spin!" onclick="controls.spin()"></input>
     <input type="button" value="Reset" onclick="controls.reset()"></input>
@@ -116,6 +114,7 @@ RigidBody.prototype = {
         this.torque.set(0,0,0);
     },
 
+    // q must represent a_R_b and omega must be expressed in b
     calculateNextQuaternion: function (q, w, delta) {
         var e = new THREE.Quaternion();
 
@@ -144,30 +143,34 @@ RigidBody.prototype = {
         // Get differential equations for angular velocity
         // M = I . alpha * omega x I . omega
 
-//        var w_R_b = new THREE.Matrix4();
-//        w_R_b.makeRotationFromQuaternion(this.quaternion);
-//        var b_R_w = w_R_b.clone().transpose();
-//
-//        var b_torque = this.torque.clone().applyMatrix4(b_R_w);
-//        var b_omega = prev_omega.clone().applyMatrix4(b_R_w);
-//
-//        var Ixx = this.Ixx;
-//        var Iyy = this.Iyy;
-//        var Izz = this.Izz;
-//
-//        var b_omegadot = new THREE.Vector3(((Iyy - Izz)* b_omega.z* b_omega.y + b_torque.x) / Ixx,
-//                ((Izz - Ixx)* b_omega.x* b_omega.z + b_torque.y) / Iyy,
-//                ((Ixx - Iyy)* b_omega.y* b_omega.x + b_torque.z) / Izz);
-//
-//        var b_omega_next = b_omega.clone().add(b_omegadot.clone().multiplyScalar(delta));
-//        var w_omega_next = b_omega_next.clone().applyMatrix4(w_R_b);
+        var w_R_b = new THREE.Matrix4();
+        w_R_b.makeRotationFromQuaternion(this.quaternion);
+        var b_R_w = w_R_b.clone().transpose();
 
-        var w_omegadot = this.torque.clone().multiplyScalar(1.0/this.Ixx);
-        var w_omega_next = prev_omega.clone().add(w_omegadot.clone().multiplyScalar(delta));
+        var b_torque = this.torque.clone().applyMatrix4(b_R_w);
+        var b_omega = prev_omega.clone().applyMatrix4(b_R_w);
+
+        var Ixx = this.Ixx;
+        var Iyy = this.Iyy;
+        var Izz = this.Izz;
+
+        var b_omegadot = new THREE.Vector3(
+                ((Iyy - Izz) * b_omega.z * b_omega.y + b_torque.x) / Ixx,
+                ((Izz - Ixx) * b_omega.x * b_omega.z + b_torque.y) / Iyy,
+                ((Ixx - Iyy) * b_omega.y * b_omega.x + b_torque.z) / Izz);
+
+        var b_omega_next = b_omega.clone().add(b_omegadot.clone().multiplyScalar(delta));
+        var w_omega_next = b_omega_next.clone().applyMatrix4(w_R_b);
+
+        // Simple dynamics
+        //var w_omegadot = this.torque.clone().multiplyScalar(1.0/this.Ixx);
+        //var w_omega_next = prev_omega.clone().add(w_omegadot.clone().multiplyScalar(delta));
 
         // Quaternion Update
-        var quaternion_next = this.calculateNextQuaternion(prev_quaternion, prev_omega, delta);
+        var b_prev_omega = prev_omega.clone().applyQuaternion(prev_quaternion.clone().conjugate());
+        var quaternion_next = this.calculateNextQuaternion(prev_quaternion, b_prev_omega, delta);
 
+        /// Actually update the rotational members.
         this.omega.copy(w_omega_next);
         this.quaternion.copy(quaternion_next);
 
@@ -232,7 +235,7 @@ function init() {
     var shadowGeo = new THREE.PlaneGeometry( 3, 3, 1, 1 );
 
     shadow = new THREE.Mesh( shadowGeo, shadowMaterial );
-    shadow.position.y = - 5;
+    shadow.position.y = - 6;
     shadow.rotation.x = - Math.PI / 2;
     scene.add( shadow );
 
@@ -344,44 +347,44 @@ function setupGui() {
 
     airParams = {
         enabled: true,
-        b_trans: 1,
-        b_rot: 2
+        b_trans: 0.4,
+        b_rot: 0.1
     };
 
     springParams = {
         enabled: true,
         is_string: true,
-        k: 100.0,
-        Ln: 2,
-        b_damper: 2,
-        b_torsion: 1,
+        k: 1000.0,
+        Ln: 3,
+        b_damper: 20,
+        b_torsion: 0.5,
         show_torque: false
     };
 
     var h;
     var gui = new dat.GUI();
 
-    gui.add( simParams, "running", true);
-    gui.add( simParams, "step_size", 0.0001, 0.1, 0.001);
-    gui.add( simParams, "mass",     0.1, 10,   1 );
+    gui.add( simParams, "running",                simParams.running);
+    gui.add( simParams, "step_size", 0.0001, 0.1, simParams.step_size);
+    gui.add( simParams, "mass",     0.1, 10,      simParams.mass );
 
     h = gui.addFolder("Air Resistance");
     h.add( airParams, "enabled",    true);
-    h.add( airParams, "b_trans", 0, 10,   1 );
-    h.add( airParams, "b_rot",   0, 10,   2 );
+    h.add( airParams, "b_trans", 0, 2,   airParams.b_trans );
+    h.add( airParams, "b_rot",   0, 2,   airParams.b_rot );
 
     h = gui.addFolder("Gravity");
-    h.add( gravityParams, "enabled", true);
-    h.add( gravityParams, "gravity",   0, 100, 9.81 );
+    h.add( gravityParams, "enabled",           gravityParams.enabled);
+    h.add( gravityParams, "gravity",   0, 100, gravityParams.gravity );
 
     h = gui.addFolder( "Spring-Damper" );
-    h.add( springParams, "enabled", true);
-    h.add( springParams, "is_string", true );
-    h.add( springParams, "k",  0, 1000, 100 );
-    h.add( springParams, "Ln", 0,   10,   2 );
-    h.add( springParams, "b_damper",  0, 100,  10);
-    h.add( springParams, "b_torsion", 0, 10,  1);
-    h.add( springParams, "show_torque",     false );
+    h.add( springParams, "enabled",            springParams.enabled);
+    h.add( springParams, "is_string",          springParams.is_string);
+    h.add( springParams, "k",  0, 10000,       springParams.k);
+    h.add( springParams, "Ln", 0,   10,        springParams.Ln);
+    h.add( springParams, "b_damper",  0, 50,   springParams.b_damper);
+    h.add( springParams, "b_torsion", 0, 50,   springParams.b_torsion);
+    h.add( springParams, "show_torque",        springParams.show_torque );
 
 }
 
@@ -416,7 +419,7 @@ function runDynamics(delta) {
     body1.clearForceAndTorque();
     body1.setInvMass(1.0/simParams.mass);
     var I_sphere = 0.4*simParams.mass;
-    body1.setInertia(I_sphere);
+    body1.setInertia(I_sphere, I_sphere, I_sphere);
 
     // Get the pose of the ball in the world frame.
     var w_T_b = new THREE.Matrix4();
@@ -498,11 +501,11 @@ function runDynamics(delta) {
         // Let's add a (totally fake) moment/torque that attempts to discourage
         // rotation of the ball around the vector pointing from Bcm to Q.
         //var w_M_torsion_damper = w_r_P_Q_hat.multiplyScalar(-body1.omega.dot(w_r_P_Q_hat)*myParams.b_torsion);
-        //var w_r_Bo_Q_hat = w_r_Bo_Q.clone().normalize();
-        //var w_M_torsion_damper = w_r_Bo_Q_hat.clone().multiplyScalar(-body1.omega.dot(w_r_Bo_Q_hat)*myParams.b_torsion);
-        var w_omega_B_axial = w_r_P_Q_hat.clone().multiplyScalar(body1.omega.dot(w_r_P_Q_hat));
-        var w_omega_B_perp = body1.omega.clone().sub(w_omega_B_axial);
-        var w_M_torsion_damper = w_omega_B_perp.clone().multiplyScalar(-springParams.b_torsion);
+        var w_r_Bo_Q_hat = w_r_Bo_Q.clone().normalize();
+        var w_M_torsion_damper = w_r_Bo_Q_hat.clone().multiplyScalar(-body1.omega.dot(w_r_Bo_Q_hat)*springParams.b_torsion);
+        //var w_omega_B_axial = w_r_P_Q_hat.clone().multiplyScalar(body1.omega.dot(w_r_P_Q_hat));
+        //var w_omega_B_perp = body1.omega.clone().sub(w_omega_B_axial);
+        //var w_M_torsion_damper = w_omega_B_perp.clone().multiplyScalar(-springParams.b_torsion);
 
         // Total moment (torque) on B:
         var w_M_total = w_M_spring.clone().add(w_M_torsion_damper);
@@ -583,7 +586,7 @@ function defineControls() {
         spin: function() {
             var omega = new THREE.Vector3(
                     4 * (Math.random() - 0.5),
-                    1 *  Math.random(),
+                    2 * (Math.random() - 0.5),
                     4 * (Math.random() - 0.5));
             //var omega = new THREE.Vector3(0, 2*Math.random(), 0);
             omega.multiplyScalar(10);
